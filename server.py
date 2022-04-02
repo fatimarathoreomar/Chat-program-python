@@ -7,27 +7,35 @@ import socket
 #     print("Incorrect number of arguments")
 #     print("Use: server_simple_udp.py <Port>")
 #     sys.exit()
-#port = int(sys.argv[1])  # port is an argument
+#PORT = int(sys.argv[1])  # port is an argument
 
-host = '127.0.0.1' # localhost
-port = 55555 #for now, using hardcoded port
+IP = '127.0.0.1' # localhost
+PORT = 5555 #for now, using hardcoded port
 FMT = 'utf-8'
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((host, port))
+server.bind((IP, PORT))
 server.listen()
 
+#keep track of currently connected clients here
 clients = []
 
-def broadcast(message):
+def broadcast(message, user):
     for client in clients:
-        client.send(message)
+        if client == user: #skip the client broadcasting the message
+            continue
+        client['client'].send(message)
+
+def getClientList():
+    clientString = ''
+    for i in range(len(clients)):
+        clientString += f"{i + 1}. {clients[i]['nickname']}\n"
+    return clientString
 
 def checkUsernames(user):
     with open('users.txt', 'r') as f:
         lines = f.readlines()
     for line in lines:
-        line = line.strip()
-        line = line.split(' ')
+        line = line.strip().split(' ')
         print(f"stuff: {user} {line[0]}")
         if user == line[0]:
             f.close()
@@ -39,8 +47,7 @@ def checkPassword(user, passWord):
     with open('users.txt', 'r') as f:
         lines = f.readlines()
     for line in lines:
-        line = line.strip()
-        line = line.split(' ')
+        line = line.strip().split(' ')
         if user == line[0]:
             if passWord == line[1]:
                 f.close()
@@ -70,16 +77,37 @@ def handle(client):
             createUser(userName, passWord)
             client.send("Created new user".encode(FMT))
             break
+    #If password was correct we should end up here
+    #add to list of connected clients
+    user = {
+        'client': client,
+        'nickname': userName
+    }
+    clients.append(user)
+
+    op = client.recv(1024).decode(FMT)
+    while op != 'EX':
+        if op == "PM":
+            client.send("Ready".encode(FMT))
+            message = client.recv(1024)
+            broadcast(message, user)
+            client.send("Message sent".encode(FMT))
+        if op == "DM":
+            return
+        op = client.recv(1024).decode(FMT)
+
+    #user chose exit
+    clients.remove(user)
+
 
 
 
 def receive():
-    print("Server is ready to receive on port ", port)
+    print("Server is ready to receive on port ", PORT)
     while True:
         print('Waiting...')
         client, address = server.accept()
         print(f"Connected with {str(address)}")
-        clients.append(client)
 
         thread = threading.Thread(target=handle, args=(client,))
         thread.start()
