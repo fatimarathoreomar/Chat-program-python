@@ -1,8 +1,10 @@
+# names="Fatima Rathore (bl1713lh), Pavel Bondarenko (bv2737dg)"
+# Chat app using TCP connection.
+
 import threading
 import socket
-name="fatima_rathore"
-star_id="bl1713lh"
-name2="Pavel_bond"
+import sys
+
 # DO NOT DELETE, WILL NEED LATER
 #check for correct number of args
 # if (len(sys.argv) != 2):
@@ -14,41 +16,37 @@ name2="Pavel_bond"
 IP = '127.0.0.1' # localhost
 PORT = 5555 #for now, using hardcoded port
 FMT = 'utf-8'
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1 )
-server.bind((IP, PORT))
-server.listen()
+try:
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1 )
+    server.bind((IP, PORT))
+    server.listen()
+except socket.error:
+    print("Error creating socket")
+    sys.exit(1)
 
 #keep track of currently connected clients here
 clients = []
 
 def broadcast(message, user):
-    lock.acquire()
     for client in clients:
         if client == user: #skip the client broadcasting the message
             continue
+        client['client'].send('\nIncoming broadcast:'.encode(FMT))
         client['client'].send(message)
-    lock.release()
 
-def broadcasttospecificuser(message, user):
-    lock.acquire()
+def broadcastToUser(message, toUser, fromUser):
     for client in clients:
-        if client == user: #skip the client broadcasting the message
-           client['client'].send(message)
-    lock.release()
-
-def getClientList():
-    clientString = ''
-    for i in range(len(clients)):
-        clientString += f"{i + 1}. {clients[i]['nickname']}\n"
-    return clientString
+        if client['nickname'] == toUser:
+            client['client'].send(f'\nMessage from {fromUser}: {message}'.encode(FMT))
+            return True
+    return False
 
 def checkUsernames(user):
     with open('users.txt', 'r') as f:
         lines = f.readlines()
     for line in lines:
         line = line.strip().split(' ')
-        print(f"stuff: {user} {line[0]}")
         if user == line[0]:
             f.close()
             return True
@@ -72,105 +70,65 @@ def checkPassword(user, passWord):
 
 def createUser(userName, passWord):
     with open('users.txt', 'a') as f:
-        f.write(f'{userName} {passWord}')
+        f.write(f'{userName} {passWord}\n')
 
 def handle(client):
     #first handle username/password situation
     while True:
-
         userName = client.recv(1024).decode(FMT)
         passWord = client.recv(1024).decode(FMT)
         if checkUsernames(userName): # see if userName exists
             if not checkPassword(userName, passWord): # check if password matches
                 client.send("Password incorrect".encode(FMT))
             else:
-                lock.acquire()
                 client.send("Password correct".encode(FMT))
-                user = {
-                    'client': client,
-                    'nickname': userName
-                }
-
-                clients.append(user)
-                lock.release()
                 break
         else: # username doesn't exist, created new username
-            lock.acquire()
             createUser(userName, passWord)
-            user = {
-                'client': client,
-                'nickname': userName
-            }
-
-            clients.append(user)
-            lock.release()
             client.send("Created new user".encode(FMT))
             break
     #If password was correct we should end up here
     #add to list of connected clients
-
+    user = {
+        'client': client,
+        'nickname': userName
+    }
+    clients.append(user)
 
     op = client.recv(1024).decode(FMT)
-    while True:
+    while op != 'EX':
         if op == "PM":
-            lock.acquire()
             client.send("Ready".encode(FMT))
             message = client.recv(1024)
             broadcast(message, user)
             client.send("Message sent".encode(FMT))
-            lock.release()
-        if op == "DM":
-            #over here sending online users to client
-            #client.send("Ready for DM".encode(FMT))
-            #clientnames=[]
-            #lock.acquire()
-            for i in range(len(clients)):
-                #clientnames.append(clients[i]['nickname'])
-                if (i!=(len(clients)-1)):
-                   client.send((clients[i]['nickname']+",").encode(FMT))
+        elif op == "DM":
+            if len(clients) == 1:
+                client.send("No other users online".encode(FMT))
+            else:
+                client.send("Other users:".encode(FMT))
+
+                num = 1
+                for i in range(len(clients)):
+                    if clients[i] == user:
+                        continue # we only want to send OTHER users
+                    client.send(f"{num}. {clients[i]['nickname']}".encode(FMT))
+                    num += 1
+                # get nickname to broadcast to
+                userToSend = client.recv(1024).decode(FMT)
+                message = client.recv(1024).decode(FMT)
+                sent = broadcastToUser(message, userToSend, user['nickname'])
+                if sent:
+                    client.send(f"Message sent to user '{userToSend}'".encode(FMT))
                 else:
-                    client.send((clients[i]['nickname']).encode(FMT))
-
-
-
-            #lock.release()
-            #client.send(",stop".encode(FMT))
-            #now client should select a user name and send one back
-            selectedname=client.recv(1024).decode(FMT)
-
-            print(selectedname)
-            if selectedname!="No other user online":
-               testFlag=0
-               #checking if the user is still online
-               for i in range(len(clients)):
-                   if selectedname==clients[i]['nickname']:
-                       client.send("User is online".encode(FMT))
-                       uu=clients[i]
-                       testFlag = 1
-                       break
-               if testFlag == 0 :
-                  client.send("User is offline".encode(FMT))
-               else:
-                #sending message to specific user
-                #client.send("Ready".encode(FMT))
-                  message = client.recv(1024)
-                  broadcasttospecificuser(message, uu)
-                  client.send("sent".encode(FMT))
-            #lock.release()    #send to message to that user only
-        if op == "EX":
-            # user chose exit
-            lock.acquire()
-            clients.remove(user)
-            client.send("you can exit".encode(FMT))
-            lock.release()
+                    client.send(f"User not found".encode(FMT))
 
         op = client.recv(1024).decode(FMT)
 
+    clients.remove(user)
+    client.send("you can exit".encode(FMT))
 
 
-
-
-lock = threading.Lock()
 def receive():
     print("Server is ready to receive on port ", PORT)
     while True:

@@ -1,6 +1,6 @@
 #go in projects directory
-Authors=['fatima Rathore','Pavel Bond']
-star_id=['bl1713lh',add your startid here]
+Authors=['fatima Rathore','Pavel Bondarenko']
+star_id=['bl1713lh', bv2737dg]
 python3 sever.py
 python3 client.py
 
