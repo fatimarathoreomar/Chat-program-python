@@ -7,10 +7,12 @@ import time
 import sys
 # DO NOT DELETE, WILL NEED LATER
 # check for cort number of args
-# if (len(sys.argv) != 4):
-#     print("Incorrect number of arguments")
-#     print("Use: client_simple_udp.py <Server Host> <Port> <username>")
-#     sys.exit()
+if (len(sys.argv) != 1):
+     print("Incorrect number of arguments")
+     print("Use: chatclient.py")
+     print("for simplicity the port and host are hardcoded")
+     print("the username will also be asked later")
+     sys.exit()
 
 # IP = sys.argv[1]
 IP = '127.0.0.1'
@@ -29,6 +31,16 @@ except:
 
 FMT = 'utf-8'
 usersOnline = True
+myname="test"
+#message size check
+#cannot recieve a message bigger than 1024 bytes
+def messagesizecheck(message):
+    #print(len(message))
+    if(len(message)>1024):
+        return -1
+    else:
+        return 1
+#print(messagesizecheck("hbxhbhbhh".encode(FMT)))
 
 def listen():
     while True:
@@ -42,7 +54,8 @@ def receive():
     # handle username and password
     while True:
         # client.send(userName.encode(FMT)) # use this later
-        client.send(input("Enter username: ").encode(FMT))  # delete this later
+        myname=input("Enter username: ").strip().encode(FMT)
+        client.send(myname)
         client.send(input("Enter password: ").encode(FMT))
         message = client.recv(1024).decode(FMT)
         if message != 'Password incorrect':  # if password is correct break out of loop
@@ -50,7 +63,7 @@ def receive():
             break
         else:
             print("Password incorrect, try again")
-
+    #thread to broadcast messages
     broadcast_thread = threading.Thread(target=listen)
     broadcast_thread.start()
 
@@ -62,7 +75,11 @@ def receive():
             client.send('PM'.encode(FMT))
             time.sleep(0.1)
             # print(f"Response: {client.recv(1024).decode(FMT)}")
-            client.send(input("Enter message to send: ").encode(FMT))
+            message=input("Enter message to send: ").strip().encode(FMT)
+            #client.send(input("Enter message to send: ").strip().encode(FMT))
+            if messagesizecheck(message)==-1:
+                print("Message size too big some will be lost")
+            client.send(message)
             time.sleep(0.1)
             # response = client.recv(1024).decode(FMT)
             # print(f"Response: {response}")
@@ -71,8 +88,18 @@ def receive():
             time.sleep(0.1)
             global usersOnline
             if usersOnline:
-                client.send(input("Enter user: ").encode(FMT))
-                client.send(input("Enter message to send: ").encode(FMT))
+                name=input("Enter user: ").strip().encode(FMT)
+                while name==myname:
+                    print("Select a name from list!why do you want to message to yourself ")
+                    name = input("Enter user: ").strip().encode(FMT)
+
+                client.send(name)
+
+                #client.send(input("Enter message to send: ").strip().encode(FMT))
+                message = input("Enter message to send: ").strip().encode(FMT)
+                if messagesizecheck(message) == -1:
+                    print("Message size too big some will be lost")
+                client.send(message)
                 time.sleep(0.1)
             usersOnline = True
         else:
@@ -84,8 +111,7 @@ def receive():
     broadcast_thread.join()
     return
 
-# we don't actually need a separte thread to do this, but that's ok
-# we will need to add a separate thread later for listening to broadcasts
+
 #lock=threading.Lock()
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()

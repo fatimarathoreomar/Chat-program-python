@@ -7,15 +7,20 @@ import sys
 
 # DO NOT DELETE, WILL NEED LATER
 #check for correct number of args
-# if (len(sys.argv) != 2):
-#     print("Incorrect number of arguments")
-#     print("Use: server_simple_udp.py <Port>")
-#     sys.exit()
+if (len(sys.argv) != 1):
+     print("Incorrect number of arguments")
+     print("Use: chatserver.py ")
+     print("we have already specified port because server can be turned on once")
+     sys.exit()
 #PORT = int(sys.argv[1])  # port is an argument
 
 IP = '127.0.0.1' # localhost
 PORT = 5555 #for now, using hardcoded port
 FMT = 'utf-8'
+
+
+
+
 try:
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1 )
@@ -69,8 +74,12 @@ def checkPassword(user, passWord):
     return False
 
 def createUser(userName, passWord):
-    with open('users.txt', 'a') as f:
-        f.write(f'{userName} {passWord}\n')
+    with open('users.txt', 'a+') as f:
+        f.seek(0)
+        data=f.read()
+        if len(data) > 0:
+            f.write("\n")
+        f.write(f'{userName} {passWord}')
 
 def handle(client):
     #first handle username/password situation
