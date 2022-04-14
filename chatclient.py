@@ -5,20 +5,16 @@ import socket
 import threading
 import time
 import sys
-# DO NOT DELETE, WILL NEED LATER
+
 # check for cort number of args
-if (len(sys.argv) != 1):
+if (len(sys.argv) != 4):
      print("Incorrect number of arguments")
-     print("Use: chatclient.py")
-     print("for simplicity the port and host are hardcoded")
-     print("the username will also be asked later")
+     print("Enter arguments: <chatclient.py> <Server_Name> <Port> <Username>")
      sys.exit()
 
-# IP = sys.argv[1]
-IP = '127.0.0.1'
-# PORT = int(sys.argv[2])
-PORT = 5555
-# userName = sys.argv[3]
+IP = sys.argv[1]
+PORT = int(sys.argv[2])
+myName = sys.argv[3]
 # create socket and catch errors
 try:
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,6 +28,8 @@ except:
 FMT = 'utf-8'
 usersOnline = True
 myname="test"
+
+
 #message size check
 #cannot recieve a message bigger than 1024 bytes
 def messagesizecheck(message):
@@ -40,8 +38,8 @@ def messagesizecheck(message):
         return -1
     else:
         return 1
-#print(messagesizecheck("hbxhbhbhh".encode(FMT)))
 
+# thread to listen to all messages from server after password validated
 def listen():
     while True:
         message = client.recv(1024).decode(FMT)
@@ -49,17 +47,17 @@ def listen():
         if message == "No other users online":
             global usersOnline
             usersOnline = False
+        elif message == 'you can exit':
+            break
 
 def receive():
     # handle username and password
     while True:
-        # client.send(userName.encode(FMT)) # use this later
-        myname=input("Enter username: ").strip().encode(FMT)
-        client.send(myname)
+        client.send(myName.encode(FMT)) # use this later
         client.send(input("Enter password: ").encode(FMT))
         message = client.recv(1024).decode(FMT)
         if message != 'Password incorrect':  # if password is correct break out of loop
-            print(f"Test: {message}")
+            print(f"{message}")
             break
         else:
             print("Password incorrect, try again")
@@ -70,33 +68,38 @@ def receive():
     print("-----Options to input-----\nPM: Public Message, DM: Direct Messaging, EX: Exit")
     op = input("Enter Option: ").strip()
 
+    # loop while EX is not chosen
     while op != 'EX':
+        # public message
         if op == "PM":
             client.send('PM'.encode(FMT))
             time.sleep(0.1)
-            # print(f"Response: {client.recv(1024).decode(FMT)}")
+            # message to PM to everyone
             message=input("Enter message to send: ").strip().encode(FMT)
-            #client.send(input("Enter message to send: ").strip().encode(FMT))
+            # check size of message
             if messagesizecheck(message)==-1:
                 print("Message size too big some will be lost")
             client.send(message)
+            # sleep to make sure the response comes in before menu
             time.sleep(0.1)
-            # response = client.recv(1024).decode(FMT)
-            # print(f"Response: {response}")
+
+        # Direct Message
         elif op == "DM":
             client.send('DM'.encode(FMT))
             time.sleep(0.1)
             global usersOnline
+            # if there are other users online
             if usersOnline:
-                name=input("Enter user: ").strip().encode(FMT)
-                while name==myname:
-                    print("Select a name from list!why do you want to message to yourself ")
-                    name = input("Enter user: ").strip().encode(FMT)
+                name = input("Enter user: ")
+                # make sure person can't DM themselves
+                while name == myname:
+                    print("Select a name from list! Why do you want to message yourself?")
+                    name = input("Enter user: ")
 
-                client.send(name)
-
-                #client.send(input("Enter message to send: ").strip().encode(FMT))
+                client.send(name.strip().encode(FMT))
+                # send DM
                 message = input("Enter message to send: ").strip().encode(FMT)
+                # see if message is more than 1024 bytes
                 if messagesizecheck(message) == -1:
                     print("Message size too big some will be lost")
                 client.send(message)
@@ -106,14 +109,10 @@ def receive():
             print("Not valid option")
         print("-----Options to input-----\nPM: Public Message, DM: Direct Messaging, EX: Exit")
         op = input("Enter Option: ").strip()
-
+    # send EX command and exit
     client.send('EX'.encode(FMT))
     broadcast_thread.join()
     return
 
-
-#lock=threading.Lock()
-receive_thread = threading.Thread(target=receive)
-receive_thread.start()
-
-receive_thread.join()
+receive()
+client.close()

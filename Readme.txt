@@ -4,36 +4,29 @@ star_id=['bl1713lh', bv2737dg]
 
 how to run files
 #go in projects directory
-python3 chatsever.py #first you need to run this
-python3 chatclient.py #you can open multiple clients on different terminals simultaneously
+python3 chatsever.py <port> #first you need to run this
+python3 chatclient.py <server_name> <port> <username>  #you can open multiple clients on different terminals simultaneously
 
-for ease we will have the client ask for name later
-server accepts multiple simultaneous client
+server accepts multiple simultaneous clients
 open multiple clients on different terminals
-using udp so no need to start server first.
+using TCP so server needs to be started first.
 
-There are two types of message frames: 1) data message and 2) command message. A data message is exchanged between clients
-(i.e., the Public and Direct messages described in the following online chat room protocol).
-A command message is exchanged between a client and the server (e.g., operation, acknowledgment, confirmation messages described below).
-Define the message format to encode the message type.
-For example, the first character of the message can be used to distinguish between the two types of messages (e.g., "C" for command message and "D" for data message).
-The sender is responsible for encoding the type of information into the message frame. The receiver is responsible for extracting the type of information from the message and performs accordingly.
-The server checks whether it is a new user or an existing user and requests a password. Note: Store usernames and passwords in a file rather than in memory (otherwise, the credentials will get lost once the server program is terminated).
+run server first
 
 chatserver.py
 
 the client list is here
 anything added removed or wanted from list is done here
-requests are sent by client and the server only has acess to the clients and sends messages,or adds user,or removes user,and sends a reply back to client that what it asked was done or not or an error occured
-there is one thread that starts the server and that thread works as the reciever thread
-it is a while loop
-in which it checks which command was sent by the client and replies accordingly
+requests are sent by client and the server only has acess to the clients and sends messages,or adds user,or removes user,
+and sends a reply back to client that what it asked was done or not or an error occured
+there is one thread that starts the server and that thread works as the reciever thread, as new connections are established
+new threads are created for each connection
+A thread listens to commands or messages from client
 
 chatclient.py
 there are two threads
 one is the main thread that does the client work. meaning it's a thread for every client.
-and in every client there is the broadcast thread that broadcast any reply sent by server
-the listen function is for the broadcast thread
+and in every client there is the listen thread which listens for incoming messages
 the receive function is for receive thread which is the client thread
 the recieve function also has a while loop which will not end untill EX command is inputted
 the client sends the commands
